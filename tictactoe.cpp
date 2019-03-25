@@ -1,6 +1,11 @@
 #include <bits/stdc++.h> 
 #include <algorithm>
+#include<omp.h>
+#include<time.h>
+
 using namespace std;
+#define CLK CLOCK_MONOTONIC
+struct timespec curr_time;
 
 class Board
 {
@@ -206,7 +211,7 @@ class State
     }
     void addScore(double w)
     {
-        if(this->winScore!=INT_MIN){
+        if(this->winScore!=(double)INT_MIN){
             this->winScore += w;
 
         }
@@ -251,7 +256,7 @@ class State
         this->player = 1-this->player;
     }
     
-    void randomPlay()
+    void randomPlay(int i)
     {
         
         
@@ -260,7 +265,11 @@ class State
         if(totalPos==0) return;
 
         
-        std::mt19937_64 random_engine(time(NULL));
+        clock_gettime(CLK, &curr_time);
+        
+        //cout<<"seed is "<<curr_time.tv_nsec<<endl;
+        std::mt19937_64 random_engine(curr_time.tv_nsec);
+
         std::uniform_int_distribution<int> dis(0, totalPos-1);
         int randnum = dis(random_engine);
         this->board.newMove(this->player, emptyPos[randnum].first, emptyPos[randnum].second);
@@ -370,10 +379,14 @@ class Node
     }
 
     // generate a random child for simulation phase
-    Node* getRandomChild()
+    Node* getRandomChild(int i)
     {
         int numChild = this->children.size();
-        std::mt19937_64 random_engine(time(NULL));
+        
+        clock_gettime(CLK, &curr_time);
+        
+        //cout<<"seed is "<<curr_time.tv_nsec<<endl;
+        std::mt19937_64 random_engine(curr_time.tv_nsec);
         std::uniform_int_distribution<int> dis(0, numChild-1);
         return &(this->children[dis(random_engine)]);
         
@@ -383,9 +396,9 @@ class Node
     double calcUCB(double winScore, int nodeVisit, int totalVisit)
     {
         if(nodeVisit == 0){
-            return INT_MAX;
+            return (double)INT_MAX;
         }
-        return (winScore/nodeVisit) + 1.41*sqrt(log(totalVisit)/nodeVisit);
+        return (winScore/(double)nodeVisit) + 1.41*sqrt(log((double)totalVisit)/(double)nodeVisit);
 
     }
 
@@ -449,9 +462,7 @@ class Tree
     public:
     //constructor
     Tree()
-    {
-        cout<<"tree contstructor"<<endl;
-        
+    {        
         this->root = new Node();
     }
     
@@ -473,7 +484,7 @@ class Tree
             cout<<"child node :"<<endl;
             (*this->root->getChildren())[i].printNode();
             cout<<"score = "<<(*this->root->getChildren())[i].getState()->getWinScore()<<endl<<endl;
-
+            cout<<"visits = "<<(*this->root->getChildren())[i].getState()->getVisitCount()<<endl<<endl;
         }
     }
 
@@ -482,19 +493,21 @@ class Tree
 // instances of every MCTS run that cycles through all 4 stages
 class MCTS
 {
-    static int const WIN_SCORE = 100;
+    static int const WIN_SCORE = 10;
     Tree* tree;
+    int level;
 
     public:
     MCTS()
     {
         this->tree = new Tree();
+        level = 0;
     }
 
     
-    Board findNextMove(Board* board, int player){
+    Node findNextMove(Board* board, int player){
         int opponent = 1 - player;
-        cout<<"opponent for this mcts object is "<<opponent<<endl;
+        //cout<<"opponent for this mcts object is "<<opponent<<endl;
         // create a new tree to find the next move
         Node* rootNode = this->tree->getRoot(); 
 
@@ -503,17 +516,14 @@ class MCTS
         rootNode->getState()->setPlayer(opponent);
         //cout<<"ROOT IS"<<endl;
         //rootNode->getState()->getBoard()->display();
-        cout<<endl<<endl;
         //run the 4 steps for a set number of iterations
-        int nIter = 1e6;
-        cout<<"starting iterations"<<endl;
+        int nIter = 1500;
         for(int i=0; i < nIter; i++)
         {
             Node* bestNode = rootNode;
             // SELECTION
             // select a path to leaf node with best UCB
             if(rootNode->getChildren()->empty()==false){
-                //cout<<"Root has"<<rootNode->getChildren()->size()<<" children for selection"<<endl;
                 bestNode = selectNode(rootNode);
             }    
             
@@ -536,7 +546,7 @@ class MCTS
             Node* nodeExp = bestNode;
             // get a random child 
             if(bestNode->getChildren()->size() > 0){
-                nodeExp = bestNode->getRandomChild();
+                nodeExp = bestNode->getRandomChild(i);
             }
             //cout<<"Got a random child done"<<endl;
 
@@ -544,7 +554,7 @@ class MCTS
             //nodeExp->getState()->getBoard()->display();
             //cout<<endl<<endl;
             // simulate a random playout of the random child
-            int playoutRes = simulateRandomPlayout(nodeExp);
+            int playoutRes = simulateRandomPlayout(nodeExp, i);
 
             // UPDATE VIA BACKPROP
             backProp(nodeExp, playoutRes);
@@ -554,17 +564,12 @@ class MCTS
         Node* temp = rootNode->getChildWithMaxScore();
         
         Node winner(temp);
+        //cout<<"LEVEL = "<<this->level<<endl<<endl;
         this->tree->dispTree();
         this->tree->setRoot(temp);
-        //tree.dispTree();
-        //cout<<"returned from getChildWithMAxScore and temp has: "<<endl;
-        //temp->getState()->getBoard()->display();
+        this->level++;
 
-
-        return *(winner.getState()->getBoard());
-
-
-
+        return winner;
 
     }
     // Selection - Successively select the child node of root with highest UCB value (L). If L is not end game, then call Expansion for L.
@@ -619,10 +624,10 @@ class MCTS
         }
     }
 
-    int simulateRandomPlayout(Node* node)
+    int simulateRandomPlayout(Node* node, int i)
     {
-        Node tempNode = (*node);  // copy of node to be played out
-        State tempState = tempNode.getState();
+        Node tempNode(node);  // copy of node to be played out
+        State tempState(tempNode.getState());
         int boardStatus = tempState.getBoard()->checkStatus();
         
         //cout<<"In simulate random playout, board status is "<<boardStatus<<endl;
@@ -641,7 +646,7 @@ class MCTS
             //cout<<"Board in prog"<<endl;
             tempState.togglePlayer();
             //cout<<"going to random play"<<endl;
-            tempState.randomPlay();
+            tempState.randomPlay(i);
             
             boardStatus = tempState.getBoard()->checkStatus();
         }
@@ -653,7 +658,6 @@ class MCTS
 
 int main(){
     // create a board
-    cout<<"Starting"<<endl;
     Board myboard;
     //myboard.display();
     MCTS mcts;
@@ -661,21 +665,29 @@ int main(){
     int totalmoves = 9;
     for(int i=0; i<9; i++)
     {
+        int x, y;
         // for each move
-        
-            myboard  = (mcts.findNextMove(&myboard, player));
-            cout<<"my board stat is "<<myboard.checkStatus()<<endl<<endl;
+        // if(player == 0){
+        //     cin>>x>>y;
+        //     myboard.newMove(player, x, y);
+        // }
+        // else{
+            cout<<"Player is "<<player<<endl;
+            myboard  = *((mcts.findNextMove(&myboard, player)).getState()->getBoard());
+       // }
+        //cout<<"my board stat is "<<myboard.checkStatus()<<endl<<endl;
         
         cout<<"current state after chance "<<i<<endl;
         myboard.display();
         cout<<endl<<endl;
         if(myboard.checkStatus()!=2){
             // if not in progress
-            cout<<"game stops"<<endl;
+            //cout<<"game stops"<<endl;
             break;
         }
-        cout<<"game continues"<<endl;
+        //cout<<"game continues"<<endl;
         player = 1-player;
+
         
 
     }
@@ -683,7 +695,7 @@ int main(){
     cout<<"Winner stat is "<<winStat<<endl;
 
 
-    return 0;
+    return winStat;
 
 }
 
