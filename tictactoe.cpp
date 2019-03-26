@@ -517,6 +517,8 @@ class MCTS
     static int const WIN_SCORE = 10;
     Tree* tree;
     int level;
+    int opponent;
+
 
     public:
     MCTS()
@@ -527,7 +529,7 @@ class MCTS
 
     
     Node findNextMove(Board* board, int player){
-        int opponent = 1 - player;
+        this->opponent = 1 - player;
         //cout<<"opponent for this mcts object is "<<opponent<<endl;
         // create a new tree to find the next move
         Node* rootNode = this->tree->getRoot(); 
@@ -541,12 +543,12 @@ class MCTS
         int nIter = 1500;
         for(int i=0; i < nIter; i++)
         {
-            Node* bestNode = rootNode;
+            //Node* bestNode = rootNode;
             // SELECTION
             // select a path to leaf node with best UCB
-            if(rootNode->getChildren()->empty()==false){
-                bestNode = selectNode(rootNode);
-            }    
+            //if(rootNode->getChildren()->empty()==false){
+                Node* bestNode = selectNode(rootNode);
+            //}    
             
             //cout<<"Selection done"<<endl;
             //bestNode->getState()->getBoard()->display();
@@ -586,7 +588,7 @@ class MCTS
         
         Node winner(temp);
         //cout<<"LEVEL = "<<this->level<<endl<<endl;
-        this->tree->dispTree();
+        //this->tree->dispTree();
         this->tree->setRoot(temp);
         this->level++;
 
@@ -652,10 +654,10 @@ class MCTS
         int boardStatus = tempState.getBoard()->checkStatus();
         
         //cout<<"In simulate random playout, board status is "<<boardStatus<<endl;
-        if(boardStatus == 1 - node->getState()->getPlayer())
+        if(boardStatus == this->opponent)
         {
             //opponent has won, end playout
-            cout<<"opponent won"<<endl;
+            //cout<<"opponent won"<<endl;
             tempNode.getParent()->getState()->setWinScore((double)INT_MIN);
             //cout<<"Returning from simulation"<<endl;
             return boardStatus;
@@ -693,14 +695,14 @@ int main(){
         //     myboard.newMove(player, x, y);
         // }
         // else{
-            cout<<"Player is "<<player<<endl;
+            //cout<<"Player is "<<player<<endl;
             myboard  = *((mcts.findNextMove(&myboard, player)).getState()->getBoard());
        // }
         //cout<<"my board stat is "<<myboard.checkStatus()<<endl<<endl;
         
-        cout<<"current state after chance "<<i<<endl;
-        myboard.display();
-        cout<<endl<<endl;
+        //cout<<"current state after chance "<<i<<endl;
+        //myboard.display();
+        
         if(myboard.checkStatus()!=2){
             // if not in progress
             //cout<<"game stops"<<endl;
