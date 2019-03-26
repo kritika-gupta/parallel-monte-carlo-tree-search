@@ -7,6 +7,8 @@ using namespace std;
 #define CLK CLOCK_MONOTONIC
 struct timespec curr_time;
 
+bool verbose = false;
+
 class Board
 {
     public:
@@ -71,6 +73,9 @@ class Board
             p = checkWin(colwise[i]);
             if(p!=-1){
                 // player p has won
+                if(verbose) {
+                    cout << "Winning combination: Column " << i << endl; 
+                }
                 return p;
             }
         }
@@ -78,11 +83,17 @@ class Board
         p = checkWin(diagonal1);
         if(p!=-1){
             // player p has won
+            if(verbose) {
+                cout << "Winning combination: Diagonal 1" << endl;
+            }
             return p;
         }
         
         p = checkWin(diagonal2);
         if(p!=-1){
+            if(verbose) {
+                cout << "Winning combination: Diagonal 2" << endl;
+            }
             // player p has won
             return p;
         }
@@ -127,6 +138,9 @@ class Board
     {
         this->moves++;  // increment number of moves
         this->board[x][y] = player;   // set '1' or 'O' as the value on board 
+        if(verbose) {
+            this->display();
+        }
         //cout<<"NEw move added by player"<<player<<" at "<<x<<y<<endl;
     }
 
@@ -268,9 +282,9 @@ class State
         clock_gettime(CLK, &curr_time);
         
         //cout<<"seed is "<<curr_time.tv_nsec<<endl;
-        std::mt19937_64 random_engine(curr_time.tv_nsec);
+        mt19937_64 random_engine(curr_time.tv_nsec);
 
-        std::uniform_int_distribution<int> dis(0, totalPos-1);
+        uniform_int_distribution<int> dis(0, totalPos-1);
         int randnum = dis(random_engine);
         this->board.newMove(this->player, emptyPos[randnum].first, emptyPos[randnum].second);
 
@@ -411,9 +425,11 @@ class Node
             Node* child = &(*this->getChildren())[i];
             double u = calcUCB(child->getState()->getWinScore(), child->getState()->getVisitCount(), this->getState()->getVisitCount());
             child->setUCB(u);
-            //cout<<"ucb ="<<u<<endl;
-            //child->getState()->getBoard()->display();
-            //cout<<endl;
+            if(verbose) {
+                cout<<"ucb = "<<u<<endl;
+                child->getState()->getBoard()->display();
+                cout<<endl;
+            }
 
             
 
@@ -423,9 +439,10 @@ class Node
             }
         }
         // return the child with max ucb score
-        //cout<<"Returning from findBestChild with : "<<endl;
-        //bestChild->getState()->getBoard()->display();
-        
+        if(verbose) {
+            cout<<"Returning from findBestChild with : "<<endl;
+            bestChild->getState()->getBoard()->display();
+        }
         return bestChild ;
 
     }
@@ -437,14 +454,18 @@ class Node
         // return child with highest visit score
         for(int i=0; i<this->children.size(); i++){
             Node* child = &(this->children[i]);
-            //cout<<"In getChildWithMaxScore, child "<<i<<" is"<<endl;
-            //child->getState()->getBoard()->display();
-            //cout<<" with vistis = "<<child->getState()->getVisitCount()<<endl;
+            if(verbose) {
+                cout<<"In getChildWithMaxScore, child "<<i<<" is"<<endl;
+                child->getState()->getBoard()->display();
+                cout<<" with vistis = "<<child->getState()->getVisitCount()<<endl;
+            }
             if((child->getState()->getVisitCount())>max){
                 best = child;
                 max = child->getState()->getVisitCount();
             }
-            //cout<<"max is"<<max<<endl;
+            if(verbose) {
+                cout<<"max is"<<max<<endl;
+            }
         }
         return best;
 
