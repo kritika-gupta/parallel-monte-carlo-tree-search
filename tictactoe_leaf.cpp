@@ -1,12 +1,14 @@
-#include <bits/stdc++.h> 
-#include <algorithm>
-#include <omp.h>
-#include <time.h>
+#include<bits/stdc++.h> 
+#include<algorithm>
+#include<omp.h>
+#include<time.h>
+#include<omp.h>
 
 using namespace std;
 #define CLK CLOCK_MONOTONIC
 struct timespec curr_time;
-double totalTime = 0;
+int p = 4;
+double totalTime=0;
 
 bool verbose = false;
 
@@ -271,7 +273,7 @@ class State
         this->player = 1-this->player;
     }
     
-    void randomPlay(int i)
+    void randomPlay()
     {
         
         
@@ -541,7 +543,7 @@ class MCTS
         //cout<<"ROOT IS"<<endl;
         //rootNode->getState()->getBoard()->display();
         //run the 4 steps for a set number of iterations
-        int nIter = 1500;
+        int nIter = 1500/4;
         for(int i=0; i < nIter; i++)
         {
             //Node* bestNode = rootNode;
@@ -572,20 +574,38 @@ class MCTS
             if(bestNode->getChildren()->size() > 0){
                 nodeExp = bestNode->getRandomChild(i);
             }
-            //cout<<"Got a random child done"<<endl;
 
+
+            //cout<<"Got a random child done"<<endl;
             //cout<<"The random Child is "<<endl;
             //nodeExp->getState()->getBoard()->display();
             //cout<<endl<<endl;
-            // simulate a random playout of the random child
+
+            
+            vector<int> playoutResults(p);
+            omp_set_num_threads(p);
+            int playoutRes;
             double start = omp_get_wtime();
-            int playoutRes = simulateRandomPlayout(nodeExp, i);
-            double serialTime = omp_get_wtime() - start;
-            totalTime +=serialTime;
+
+            #pragma omp parallel private(playoutRes)
+            {
+                int myID = omp_get_thread_num();
+                // simulate a random playout of the random child
+                playoutRes = simulateRandomPlayout(nodeExp);
+                playoutResults[myID] = playoutRes;
+
+            }
+            double leafTime = omp_get_wtime() - start;
+            totalTime += leafTime;
+
 
             // UPDATE VIA BACKPROP
-            backProp(nodeExp, playoutRes);
-            //cout<<"BAckprop done"<<endl;
+            for(int j=0; j<p; j++){
+
+                backProp(nodeExp, playoutResults[j]);
+
+            }
+            //cout<<"Backprop done"<<endl;
 
         }
         Node* temp = rootNode->getChildWithMaxScore();
@@ -651,7 +671,7 @@ class MCTS
         }
     }
 
-    int simulateRandomPlayout(Node* node, int i)
+    int simulateRandomPlayout(Node* node)
     {
         Node tempNode(node);  // copy of node to be played out
         State tempState(tempNode.getState());
@@ -673,7 +693,7 @@ class MCTS
             //cout<<"Board in prog"<<endl;
             tempState.togglePlayer();
             //cout<<"going to random play"<<endl;
-            tempState.randomPlay(i);
+            tempState.randomPlay();
             
             boardStatus = tempState.getBoard()->checkStatus();
         }
@@ -690,6 +710,7 @@ int main(){
     MCTS mcts;
     int player = 0;
     int totalmoves = 9;
+
     for(int i=0; i<9; i++)
     {
         int x, y;
@@ -700,7 +721,14 @@ int main(){
         // }
         // else{
             //cout<<"Player is "<<player<<endl;
+
+
+
+
             myboard  = *((mcts.findNextMove(&myboard, player)).getState()->getBoard());
+
+
+
        // }
         //cout<<"my board stat is "<<myboard.checkStatus()<<endl<<endl;
         
@@ -718,11 +746,10 @@ int main(){
         
 
     }
+
     int winStat = myboard.checkStatus();
     cout<<"Winner stat is "<<winStat<<endl;
-    cout<<"Serial : "<<totalTime;
-
-
+    cout<<"Parallel : "<<totalTime;
     return winStat;
 
 }
