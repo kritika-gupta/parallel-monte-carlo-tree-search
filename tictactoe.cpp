@@ -519,14 +519,17 @@ class MCTS
     Tree* tree;
     int level;
     int opponent;
+    int n;
 
 
     public:
-    MCTS()
+    MCTS(int n)
     {
         this->tree = new Tree();
-        level = 0;
+        this->level = 0;
+        this->n = n;
     }
+
 
     
     Node findNextMove(Board* board, int player){
@@ -541,8 +544,8 @@ class MCTS
         //cout<<"ROOT IS"<<endl;
         //rootNode->getState()->getBoard()->display();
         //run the 4 steps for a set number of iterations
-        int nIter = 1500;
-        for(int i=0; i < nIter; i++)
+
+        for(int i=0; i < this->n; i++)
         {
             //Node* bestNode = rootNode;
             // SELECTION
@@ -683,11 +686,14 @@ class MCTS
 };
 
 
-int main(){
+int main(int argc, char* argv[]){
+    
+    int n = atoi(argv[1]);
+
     // create a board
     Board myboard;
     //myboard.display();
-    MCTS mcts;
+    MCTS mcts(n);
     int player = 0;
     int totalmoves = 9;
     double start = omp_get_wtime();
@@ -721,10 +727,7 @@ int main(){
     }
     double serial_time = omp_get_wtime() - start;
     int winStat = myboard.checkStatus();
-    cout<<"Winner stat is "<<winStat<<endl;
-    cout<<"Serial : "<<serial_time;
-
-
+    cout<<winStat<<" "<<serial_time<<endl;
     return 0;
 
 }

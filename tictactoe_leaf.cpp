@@ -747,8 +747,8 @@ int main(int argc, char* argv[]){
     double leaf_time = omp_get_wtime() - start;
 
     int winStat = myboard.checkStatus();
-    cout<<"Winner stat is "<<winStat<<endl;
-    cout<<"Parallel : "<<leaf_time;
+    
+    cout<<winStat<<" "<<leaf_time<<endl;
 
     return 0;
 
