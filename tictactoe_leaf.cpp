@@ -7,8 +7,6 @@
 using namespace std;
 #define CLK CLOCK_MONOTONIC
 struct timespec curr_time;
-int p = 4;
-double totalTime=0;
 
 bool verbose = false;
 
@@ -521,13 +519,17 @@ class MCTS
     Tree* tree;
     int level;
     int opponent;
+    int n;
+    int p;
 
 
     public:
-    MCTS()
+    MCTS(int n, int p)
     {
         this->tree = new Tree();
-        level = 0;
+        this->level = 0;
+        this->n = n;
+        this->p = p;
     }
 
     
@@ -543,8 +545,7 @@ class MCTS
         //cout<<"ROOT IS"<<endl;
         //rootNode->getState()->getBoard()->display();
         //run the 4 steps for a set number of iterations
-        int nIter = 1500/4;
-        for(int i=0; i < nIter; i++)
+        for(int i=0; i < this->n; i++)
         {
             //Node* bestNode = rootNode;
             // SELECTION
@@ -581,11 +582,9 @@ class MCTS
             //nodeExp->getState()->getBoard()->display();
             //cout<<endl<<endl;
 
-            
-            vector<int> playoutResults(p);
-            omp_set_num_threads(p);
+            vector<int> playoutResults(this->p);
+            omp_set_num_threads(this->p);
             int playoutRes;
-            double start = omp_get_wtime();
 
             #pragma omp parallel private(playoutRes)
             {
@@ -595,12 +594,9 @@ class MCTS
                 playoutResults[myID] = playoutRes;
 
             }
-            double leafTime = omp_get_wtime() - start;
-            totalTime += leafTime;
-
 
             // UPDATE VIA BACKPROP
-            for(int j=0; j<p; j++){
+            for(int j=0; j < this->p; j++){
 
                 backProp(nodeExp, playoutResults[j]);
 
@@ -703,14 +699,16 @@ class MCTS
 };
 
 
-int main(){
+int main(int argc, char* argv[]){
+    int n = atoi(argv[1]);
+    int p = atoi(argv[2]);
     // create a board
     Board myboard;
     //myboard.display();
-    MCTS mcts;
+    MCTS mcts(n, p);
     int player = 0;
     int totalmoves = 9;
-
+    double start = omp_get_wtime();
     for(int i=0; i<9; i++)
     {
         int x, y;
@@ -746,11 +744,13 @@ int main(){
         
 
     }
+    double leaf_time = omp_get_wtime() - start;
 
     int winStat = myboard.checkStatus();
     cout<<"Winner stat is "<<winStat<<endl;
-    cout<<"Parallel : "<<totalTime;
-    return winStat;
+    cout<<"Parallel : "<<leaf_time;
+
+    return 0;
 
 }
 

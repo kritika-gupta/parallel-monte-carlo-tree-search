@@ -690,6 +690,7 @@ int main(){
     MCTS mcts;
     int player = 0;
     int totalmoves = 9;
+    double start = omp_get_wtime();
     for(int i=0; i<9; i++)
     {
         int x, y;
@@ -718,12 +719,13 @@ int main(){
         
 
     }
+    double serial_time = omp_get_wtime() - start;
     int winStat = myboard.checkStatus();
     cout<<"Winner stat is "<<winStat<<endl;
-    cout<<"Serial : "<<totalTime;
+    cout<<"Serial : "<<serial_time;
 
 
-    return winStat;
+    return 0;
 
 }
 
