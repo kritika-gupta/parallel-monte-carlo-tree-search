@@ -1,12 +1,12 @@
-#include<bits/stdc++.h> 
-#include<algorithm>
-#include<omp.h>
-#include<time.h>
-#include<omp.h>
+#include <bits/stdc++.h> 
+#include <algorithm>
+#include <omp.h>
+#include <time.h>
 
 using namespace std;
 #define CLK CLOCK_MONOTONIC
 struct timespec curr_time;
+double totalTime = 0;
 
 bool verbose = false;
 
@@ -271,8 +271,10 @@ class State
         this->player = 1-this->player;
     }
     
-    void randomPlay()
-    {        
+    void randomPlay(int i)
+    {
+        
+        
         vector<pair<int, int> > emptyPos  = this->board.getEmptyPos();
         int totalPos = emptyPos.size();
         if(totalPos==0) return;
@@ -281,7 +283,7 @@ class State
         clock_gettime(CLK, &curr_time);
         
         //cout<<"seed is "<<curr_time.tv_nsec<<endl;
-        mt19937_64 random_engine((curr_time.tv_nsec)*omp_get_thread_num());
+        mt19937_64 random_engine(curr_time.tv_nsec*omp_get_thread_num());
 
         uniform_int_distribution<int> dis(0, totalPos-1);
         int randnum = dis(random_engine);
@@ -399,7 +401,7 @@ class Node
         clock_gettime(CLK, &curr_time);
         
         //cout<<"seed is "<<curr_time.tv_nsec<<endl;
-        std::mt19937_64 random_engine(curr_time.tv_nsec);
+        std::mt19937_64 random_engine(curr_time.tv_nsec*omp_get_thread_num());
         std::uniform_int_distribution<int> dis(0, numChild-1);
         return &(this->children[dis(random_engine)]);
         
@@ -428,7 +430,9 @@ class Node
                 cout<<"ucb = "<<u<<endl;
                 child->getState()->getBoard()->display();
                 cout<<endl;
-            }            
+            }
+
+            
 
             if(u>max){
                 max=u;
@@ -483,7 +487,14 @@ class Tree
     {        
         this->root = new Node();
     }
-    
+
+    //copy constructor
+    Tree(Tree *tree)
+    {
+        Node newNode(tree->getRoot());
+        this->root = &newNode;
+    }
+
     Node* getRoot()
     {
         return (this->root);
@@ -516,17 +527,16 @@ class MCTS
     int level;
     int opponent;
     int n;
-    int p;
 
 
     public:
-    MCTS(int n, int p)
+    MCTS(int n)
     {
         this->tree = new Tree();
         this->level = 0;
         this->n = n;
-        this->p = p;
     }
+
 
     
     Node findNextMove(Board* board, int player){
@@ -541,64 +551,53 @@ class MCTS
         //cout<<"ROOT IS"<<endl;
         //rootNode->getState()->getBoard()->display();
         //run the 4 steps for a set number of iterations
-        for(int i=0; i < this->n; i++)
+        #pragma omp parallel
         {
-            //Node* bestNode = rootNode;
-            // SELECTION
-            // select a path to leaf node with best UCB
-            //if(rootNode->getChildren()->empty()==false){
-                Node* bestNode = selectNode(rootNode);
-            //}    
-            
-            //cout<<"Selection done"<<endl;
-            //bestNode->getState()->getBoard()->display();
-            // check if selected node is not end game scenario
-            // EXPAND
-            
-
-            // status of best node
-            int temp = bestNode->getState()->getBoard()->checkStatus();
-            //cout<<"After selection, we selected a node with status = "<<temp<<endl<<endl;
-            if(temp==2){
-                expandNode(bestNode);
-            }
-            //cout<<"Expansion done"<<endl;
-
-
-            // SIMULATE
-            Node* nodeExp = bestNode;
-            // get a random child 
-            if(bestNode->getChildren()->size() > 0){
-                nodeExp = bestNode->getRandomChild(i);
-            }
-
-
-            //cout<<"Got a random child done"<<endl;
-            //cout<<"The random Child is "<<endl;
-            //nodeExp->getState()->getBoard()->display();
-            //cout<<endl<<endl;
-
-            vector<int> playoutResults(this->p);
-            omp_set_num_threads(this->p);
-            int playoutRes;
-
-            #pragma omp parallel private(playoutRes)
+            Tree threadTree(this->tree);
+            rootNode = threadTree.getRoot();
+            for(int i=0; i < this->n; i++)
             {
-                int myID = omp_get_thread_num();
+                //Node* bestNode = rootNode;
+                // SELECTION
+                // select a path to leaf node with best UCB
+                //if(rootNode->getChildren()->empty()==false){
+                    Node* bestNode = selectNode(rootNode);
+                //}    
+                
+                //cout<<"Selection done"<<endl;
+                //bestNode->getState()->getBoard()->display();
+                // check if selected node is not end game scenario
+                // EXPAND
+                
+
+                // status of best node
+                int temp = bestNode->getState()->getBoard()->checkStatus();
+                //cout<<"After selection, we selected a node with status = "<<temp<<endl<<endl;
+                if(temp==2){
+                    expandNode(bestNode);
+                }
+                //cout<<"Expansion done"<<endl;
+
+
+                // SIMULATE
+                Node* nodeExp = bestNode;
+                // get a random child 
+                if(bestNode->getChildren()->size() > 0){
+                    nodeExp = bestNode->getRandomChild(i);
+                }
+                //cout<<"Got a random child done"<<endl;
+
+                //cout<<"The random Child is "<<endl;
+                //nodeExp->getState()->getBoard()->display();
+                //cout<<endl<<endl;
                 // simulate a random playout of the random child
-                playoutRes = simulateRandomPlayout(nodeExp);
-                playoutResults[myID] = playoutRes;
+                int playoutRes = simulateRandomPlayout(nodeExp, i);
+
+                // UPDATE VIA BACKPROP
+                backProp(nodeExp, playoutRes);
+                //cout<<"BAckprop done"<<endl;
 
             }
-
-            // UPDATE VIA BACKPROP
-            for(int j=0; j < this->p; j++){
-
-                backProp(nodeExp, playoutResults[j]);
-
-            }
-            //cout<<"Backprop done"<<endl;
-
         }
         Node* temp = rootNode->getChildWithMaxScore();
         
@@ -663,7 +662,7 @@ class MCTS
         }
     }
 
-    int simulateRandomPlayout(Node* node)
+    int simulateRandomPlayout(Node* node, int i)
     {
         Node tempNode(node);  // copy of node to be played out
         State tempState(tempNode.getState());
@@ -685,7 +684,7 @@ class MCTS
             //cout<<"Board in prog"<<endl;
             tempState.togglePlayer();
             //cout<<"going to random play"<<endl;
-            tempState.randomPlay();
+            tempState.randomPlay(i);
             
             boardStatus = tempState.getBoard()->checkStatus();
         }
@@ -696,12 +695,13 @@ class MCTS
 
 
 int main(int argc, char* argv[]){
+    
     int n = atoi(argv[1]);
-    int p = atoi(argv[2]);
+
     // create a board
     Board myboard;
     //myboard.display();
-    MCTS mcts(n, p);
+    MCTS mcts(n);
     int player = 0;
     int totalmoves = 9;
     double start = omp_get_wtime();
@@ -715,14 +715,7 @@ int main(int argc, char* argv[]){
         // }
         // else{
             //cout<<"Player is "<<player<<endl;
-
-
-
-
             myboard  = *((mcts.findNextMove(&myboard, player)).getState()->getBoard());
-
-
-
        // }
         //cout<<"my board stat is "<<myboard.checkStatus()<<endl<<endl;
         
@@ -740,12 +733,9 @@ int main(int argc, char* argv[]){
         
 
     }
-    double leaf_time = omp_get_wtime() - start;
-
+    double serial_time = omp_get_wtime() - start;
     int winStat = myboard.checkStatus();
-    
-    cout<<winStat<<" "<<leaf_time<<endl;
-
+    cout<<winStat<<" "<<serial_time<<endl;
     return 0;
 
 }
