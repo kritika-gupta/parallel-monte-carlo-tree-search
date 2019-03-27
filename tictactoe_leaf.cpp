@@ -530,6 +530,7 @@ class MCTS
 
     
     Node findNextMove(Board* board, int player){
+
         this->opponent = 1 - player;
         //cout<<"opponent for this mcts object is "<<opponent<<endl;
         // create a new tree to find the next move
@@ -541,6 +542,7 @@ class MCTS
         //cout<<"ROOT IS"<<endl;
         //rootNode->getState()->getBoard()->display();
         //run the 4 steps for a set number of iterations
+
         for(int i=0; i < this->n; i++)
         {
             //Node* bestNode = rootNode;
@@ -600,6 +602,8 @@ class MCTS
             //cout<<"Backprop done"<<endl;
 
         }
+
+        
         Node* temp = rootNode->getChildWithMaxScore();
         
         Node winner(temp);
