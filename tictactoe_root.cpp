@@ -347,6 +347,10 @@ class Node
     {
         this->state = new State(n->getState());
         this->setParent(n->getParent());
+        if(n->getChildren()->size()==0){
+            this->children.resize(0);
+
+        }
         for(int i=0; i<n->getChildren()->size(); i++)
         {
             // copy esch node child
@@ -422,6 +426,7 @@ class Node
         double max = INT_MIN;
         Node* bestChild = nullptr;
         // calculate ucb scores for each child
+        
         for(int i=0; i<this->getChildren()->size(); i++){
             Node* child = &(*this->getChildren())[i];
             double u = calcUCB(child->getState()->getWinScore(), child->getState()->getVisitCount(), this->getState()->getVisitCount());
@@ -439,6 +444,7 @@ class Node
                 bestChild = child;
             }
         }
+        
         // return the child with max ucb score
         if(verbose) {
             cout<<"Returning from findBestChild with : "<<endl;
@@ -491,8 +497,8 @@ class Tree
     //copy constructor
     Tree(Tree *tree)
     {
-        Node newNode(tree->getRoot());
-        this->root = &newNode;
+        this->root = new Node(tree->getRoot());
+        
     }
 
     Node* getRoot()
@@ -527,14 +533,16 @@ class MCTS
     int level;
     int opponent;
     int n;
+    int p;
 
 
     public:
-    MCTS(int n)
+    MCTS(int num, int threads)
     {
         this->tree = new Tree();
         this->level = 0;
-        this->n = n;
+        this->n = num;
+        this->p = threads;
     }
 
 
@@ -548,36 +556,48 @@ class MCTS
         //set the given board (current game state) as the root's state's board
         rootNode->getState()->setBoard(board);
         rootNode->getState()->setPlayer(opponent);
-        //cout<<"ROOT IS"<<endl;
-        //rootNode->getState()->getBoard()->display();
+
+
         //run the 4 steps for a set number of iterations
-        #pragma omp parallel
+
+        vector<vector<Node>> allChildren(this->p);
+        omp_set_num_threads(this->p);
+        #pragma omp parallel shared(rootNode)
         {
             Tree threadTree(this->tree);
-            rootNode = threadTree.getRoot();
-            for(int i=0; i < this->n; i++)
+            Node* myRoot = threadTree.getRoot();
+            // cout<<"myRoot points to  "<<myRoot<<endl;
+            // cout<<"Children = "<<myRoot->getChildren()->size()<<endl;
+            for(int i=0; i < (this->n)/4 ; i++)
             {
                 //Node* bestNode = rootNode;
                 // SELECTION
                 // select a path to leaf node with best UCB
                 //if(rootNode->getChildren()->empty()==false){
-                    Node* bestNode = selectNode(rootNode);
+                    
+
+                    Node* bestNode = selectNode(myRoot);
+                    
+                    
                 //}    
                 
                 //cout<<"Selection done"<<endl;
+
                 //bestNode->getState()->getBoard()->display();
                 // check if selected node is not end game scenario
                 // EXPAND
                 
-
+                    
                 // status of best node
-                int temp = bestNode->getState()->getBoard()->checkStatus();
+                int tempstatus = bestNode->getState()->getBoard()->checkStatus();
+
                 //cout<<"After selection, we selected a node with status = "<<temp<<endl<<endl;
-                if(temp==2){
+                if(tempstatus==2){
                     expandNode(bestNode);
                 }
-                //cout<<"Expansion done"<<endl;
+               
 
+                //cout<<"Expansion done"<<endl;
 
                 // SIMULATE
                 Node* nodeExp = bestNode;
@@ -585,6 +605,7 @@ class MCTS
                 if(bestNode->getChildren()->size() > 0){
                     nodeExp = bestNode->getRandomChild(i);
                 }
+                
                 //cout<<"Got a random child done"<<endl;
 
                 //cout<<"The random Child is "<<endl;
@@ -596,14 +617,27 @@ class MCTS
                 // UPDATE VIA BACKPROP
                 backProp(nodeExp, playoutRes);
                 //cout<<"BAckprop done"<<endl;
+                allChildren[omp_get_thread_num()] = *(myRoot->getChildren());
 
             }
         }
+
+        // merge the scores of the clones
+        expandNode(rootNode);
+        vector<int> finalScores(rootNode->getChildren()->size());
+        for(int j=0; j<rootNode->getChildren()->size(); j++){
+            for(int i=0; i<this->p; i++)
+                    {
+                        finalScores[j] = allChildren[i][j].getState()->getVisitCount();
+                    }
+            (*rootNode->getChildren())[j].getState()->setVisitCount(finalScores[j]);
+        }
+        
         Node* temp = rootNode->getChildWithMaxScore();
         
         Node winner(temp);
         //cout<<"LEVEL = "<<this->level<<endl<<endl;
-        //this->tree->dispTree();
+        this->tree->dispTree();
         this->tree->setRoot(temp);
         this->level++;
 
@@ -614,7 +648,8 @@ class MCTS
     Node* selectNode(Node* rootNode)
     {
         Node* node = rootNode;
-        int num = node->getChildren()->size();
+        int num = rootNode->getChildren()->size();
+
         while(num!=0){
             // traverse the tree to get leaf with highest ucb value
 
@@ -623,6 +658,7 @@ class MCTS
 
         }
         //cout<<"returning from selection by selecting : "<<endl;
+
         //node->getState()->getBoard()->display();
         //cout<<endl<<endl;
         return node;
@@ -630,17 +666,23 @@ class MCTS
 
     void expandNode(Node* node)
     {
+
         vector<State> possibleStates = node->getState()->getPossibleStates();
+
         // for each possible state, create a new child node
         //cout<<"Number of possible states are"<<possibleStates.size()<<endl;
         for(int i =0; i<possibleStates.size(); i++){
             Node newNode(&possibleStates[i]);
-            newNode.setParent(node);
-            newNode.getState()->setPlayer(1-node->getState()->getPlayer());
-            node->getChildren()->push_back(newNode);
 
+            newNode.setParent(node);
+            
+            newNode.getState()->setPlayer(1-node->getState()->getPlayer());
+
+            node->getChildren()->push_back(newNode);
+                                    
             
         }
+
     }
 
     void backProp(Node* nodeExp, int player)
@@ -697,11 +739,12 @@ class MCTS
 int main(int argc, char* argv[]){
     
     int n = atoi(argv[1]);
+    int p = atoi(argv[2]);
 
     // create a board
     Board myboard;
     //myboard.display();
-    MCTS mcts(n);
+    MCTS mcts(n, p);
     int player = 0;
     int totalmoves = 9;
     double start = omp_get_wtime();
