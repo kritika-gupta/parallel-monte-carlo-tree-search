@@ -10,8 +10,8 @@ if(len(sys.argv)==1):
 maxProc = int(sys.argv[1])
 runs = int(sys.argv[2])
 
-processors = [i for i in range(1, maxProc+1)]
-problem_size = [10**i for i in range(1, 4)] + [5*(10**i) for i in range(1, 3)]
+processors = [i for i in range(0, maxProc+1)]
+problem_size = [10**i for i in range(2, 4)] + [5*(10**i) for i in range(1, 4)]
 problem_size.sort()
 base = os.getcwd()
 
@@ -56,9 +56,12 @@ for r in range(runs):
         for n in problem_size:
             print "Problem size : ", n
 
-            serial_out = map(float, subprocess.check_output([serial_exec, str(n)]).split())  
+            serial_out = map(float, subprocess.check_output([serial_exec, str(n)]).split())
+            print "serial done"  
             leaf_out = map(float, subprocess.check_output([leaf_exec, str(n/p), str(p)]).split())
+            print "leaf done"
             root_out = map(float, subprocess.check_output([root_exec, str(n/p), str(p)]).split())
+            print "root done"
 
             serial_result = serial_out[0]
             leaf_result = leaf_out[0]

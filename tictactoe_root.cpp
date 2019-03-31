@@ -557,12 +557,13 @@ class MCTS
         rootNode->getState()->setBoard(board);
         rootNode->getState()->setPlayer(opponent);
 
-
+        Node* bestNode, *nodeExp;
+        int tempstatus, playoutRes;
         //run the 4 steps for a set number of iterations
 
-        vector<vector<Node>> allChildren(this->p);
+        vector<vector<int>> allChildren(this->p);
         omp_set_num_threads(this->p);
-        #pragma omp parallel shared(rootNode)
+        #pragma omp parallel private(bestNode, nodeExp, tempstatus, playoutRes) shared(rootNode)
         {
             Tree threadTree(this->tree);
             Node* myRoot = threadTree.getRoot();
@@ -576,7 +577,7 @@ class MCTS
                 //if(rootNode->getChildren()->empty()==false){
                     
 
-                    Node* bestNode = selectNode(myRoot);
+                    bestNode = selectNode(myRoot);
                     
                     
                 //}    
@@ -589,7 +590,7 @@ class MCTS
                 
                     
                 // status of best node
-                int tempstatus = bestNode->getState()->getBoard()->checkStatus();
+                tempstatus = bestNode->getState()->getBoard()->checkStatus();
 
                 //cout<<"After selection, we selected a node with status = "<<temp<<endl<<endl;
                 if(tempstatus==2){
@@ -600,7 +601,7 @@ class MCTS
                 //cout<<"Expansion done"<<endl;
 
                 // SIMULATE
-                Node* nodeExp = bestNode;
+                nodeExp = bestNode;
                 // get a random child 
                 if(bestNode->getChildren()->size() > 0){
                     nodeExp = bestNode->getRandomChild(i);
@@ -612,29 +613,42 @@ class MCTS
                 //nodeExp->getState()->getBoard()->display();
                 //cout<<endl<<endl;
                 // simulate a random playout of the random child
-                int playoutRes = simulateRandomPlayout(nodeExp, i);
+                playoutRes = simulateRandomPlayout(nodeExp, i);
 
                 // UPDATE VIA BACKPROP
                 backProp(nodeExp, playoutRes);
                 //cout<<"BAckprop done"<<endl;
-                allChildren[omp_get_thread_num()] = *(myRoot->getChildren());
+                int myID = omp_get_thread_num();
+                allChildren[myID].resize(myRoot->getChildren()->size());
+                for(int i=0; i<myRoot->getChildren()->size(); i++){
+                    allChildren[myID][i] = (*myRoot->getChildren())[i].getState()->getVisitCount();
+
+                }
+                
 
             }
         }
 
         // merge the scores of the clones
         expandNode(rootNode);
-        vector<int> finalScores(rootNode->getChildren()->size());
+        vector<int> finalScores(rootNode->getChildren()->size(), 0);
+        
+        int max = INT_MIN, max_id = 0;
         for(int j=0; j<rootNode->getChildren()->size(); j++){
             for(int i=0; i<this->p; i++)
-                    {
-                        finalScores[j] = allChildren[i][j].getState()->getVisitCount();
-                    }
-            (*rootNode->getChildren())[j].getState()->setVisitCount(finalScores[j]);
+            {
+                finalScores[j] += allChildren[i][j];
+            }
+            if(finalScores[j]>max)
+            {
+                max = finalScores[j];
+                max_id = j;
+            }
+                
+            //(*rootNode->getChildren())[j].getState()->setVisitCount(finalScores[j]);
         }
-        
-        Node* temp = rootNode->getChildWithMaxScore();
-        
+        //Node* temp = rootNode->getChildWithMaxScore();
+        Node* temp = &(*rootNode->getChildren())[max_id];
         Node winner(temp);
         //cout<<"LEVEL = "<<this->level<<endl<<endl;
         //this->tree->dispTree();
