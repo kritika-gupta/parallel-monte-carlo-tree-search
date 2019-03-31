@@ -568,7 +568,7 @@ class MCTS
             Node* myRoot = threadTree.getRoot();
             // cout<<"myRoot points to  "<<myRoot<<endl;
             // cout<<"Children = "<<myRoot->getChildren()->size()<<endl;
-            for(int i=0; i < (this->n)/4 ; i++)
+            for(int i=0; i <this->n; i++)
             {
                 //Node* bestNode = rootNode;
                 // SELECTION
@@ -637,7 +637,7 @@ class MCTS
         
         Node winner(temp);
         //cout<<"LEVEL = "<<this->level<<endl<<endl;
-        this->tree->dispTree();
+        //this->tree->dispTree();
         this->tree->setRoot(temp);
         this->level++;
 
