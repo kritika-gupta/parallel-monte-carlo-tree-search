@@ -10,9 +10,9 @@ if(len(sys.argv)==1):
 maxProc = int(sys.argv[1])
 runs = int(sys.argv[2])
 
-processors = [i for i in range(1, maxProc+1)]
-problem_size = [10**i for i in range(2, 4)] + [5*(10**i) for i in range(2, 4)] + [2*(10**i) for i in range(2, 4)]
-problem_size.sort()
+processors = [4]
+#problem_size = [100*i for i in range(4, 9)]
+problem_size = [10000]
 base = os.getcwd()
 
 serial_file = base + "/connect4.cpp"

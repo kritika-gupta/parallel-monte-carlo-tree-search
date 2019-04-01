@@ -57,6 +57,7 @@ class Board
     vector<pair<int, int> > getEmptyPos()
     {
         vector<pair<int, int> > positions;
+        positions.reserve(42);
 
         //for every col, get the deepest empty row
         for(int col=0; col<7; col++)
@@ -211,7 +212,7 @@ class Board
         return this->moves;
     }
 
-    void setBoardValues(vector<vector<int> > board)
+    void setBoardValues(vector<vector<int> > const & board)
     {
         this->board = board;
     }
@@ -311,6 +312,7 @@ class State
     vector<State> getPossibleStates()
     {
         vector<State> possibleStates;
+        possibleStates.reserve(42);
 
         // playing at each empty position generates a new state
         vector<pair<int, int> > emptyPositions = this->board.getEmptyPos();
@@ -331,22 +333,13 @@ class State
         this->player = 1-this->player;
     }
     
-    void randomPlay()
+    void randomPlay(int randnum)
     {
         
-        vector<pair<int, int> > emptyPos  = this->board.getEmptyPos();
-        int totalPos = emptyPos.size();
-        if(totalPos==0) return;
-
         
-        clock_gettime(CLK, &curr_time);
         
         //cout<<"seed is "<<curr_time.tv_nsec<<endl;
-        mt19937_64 random_engine((curr_time.tv_nsec)*omp_get_thread_num());
-
-        uniform_int_distribution<int> dis(0, totalPos-1);
-        int randnum = dis(random_engine);
-        this->board.newMove(this->player, emptyPos[randnum].first, emptyPos[randnum].second);
+        
         //cout<<"returning from random play"<<endl;
 
     }
@@ -371,8 +364,7 @@ class Node
         this->state.setVisitCount(s.getVisitCount());
 
         this->parent=nullptr;
-        vector<Node> children(0);
-        this->children = children;
+        this->children.reserve(42);
         this->ucb = 0;    // **
 
     }
@@ -385,20 +377,18 @@ class Node
         this->state.setVisitCount(s->getVisitCount());
         this->parent=nullptr;
 
-        vector<Node> children(0);
-
-        this->children = children;
+        this->children.reserve(42);
         this->ucb = 0;    // **
     }
 
-    Node(State* s, Node* p, vector<Node> *c, double u)
+    Node(State* s, Node* p, vector<Node> &c, double u)
     {
         this->state.setBoard(s->getBoard());
         this->state.setPlayer(s->getPlayer());
         this->state.setWinScore(s->getWinScore());
         this->state.setVisitCount(s->getVisitCount());
-        *this->parent = Node(p->getState(), p->getParent(), p->getChildren(), p->getUCB());
-        this->children = *c;
+        *this->parent = Node(p->getState(), p->getParent(), *p->getChildren(), p->getUCB());
+        this->children = c;
         this->ucb = u;    // **
     }
 
@@ -659,6 +649,7 @@ class MCTS
 
             #pragma omp parallel private(playoutRes)
             {
+                
                 int myID = omp_get_thread_num();
                 // simulate a random playout of the random child
                 playoutRes = simulateRandomPlayout(nodeExp);
@@ -754,12 +745,21 @@ class MCTS
             return boardStatus;
         }
         // while board is in progress
+        clock_gettime(CLK, &curr_time);
+        mt19937_64 random_engine((curr_time.tv_nsec)*omp_get_thread_num());
         while(boardStatus == 2)
         {
             //cout<<"Board in prog"<<endl;
             tempState.togglePlayer();
             //cout<<"going to random play"<<endl;
-            tempState.randomPlay();
+            vector<pair<int, int> > emptyPos  = tempState.getBoard()->getEmptyPos();
+            int totalPos = emptyPos.size();
+            if(totalPos==0) break;
+
+            uniform_int_distribution<int> dis(0, totalPos-1);
+            
+            int randnum = dis(random_engine);
+            tempState.getBoard()->newMove(tempState.getPlayer(), emptyPos[randnum].first, emptyPos[randnum].second);
             //tempState.getBoard()->display();
             boardStatus = tempState.getBoard()->checkStatus();
         }

@@ -12,11 +12,11 @@ bool verbose = false;
 
 class Board
 {
-    public:
+    
     int moves;
     vector<vector<int>> board;
     int lastcol, lastrow;
-
+    public:
     // constructor 
     Board(){
         for(int i=0; i<6; i++){
@@ -57,6 +57,7 @@ class Board
     vector<pair<int, int> > getEmptyPos()
     {
         vector<pair<int, int> > positions;
+        positions.reserve(42);
 
         //for every col, get the deepest empty row
         for(int col=0; col<7; col++)
@@ -188,7 +189,7 @@ class Board
     }
 
     // getters and setters
-    vector<vector<int> >& getBoardValues()
+    vector<vector<int> > getBoardValues()
     {
         return this->board;
     }
@@ -198,7 +199,7 @@ class Board
         return this->moves;
     }
 
-    void setBoardValues(vector<vector<int> >& board)
+    void setBoardValues(vector<vector<int> > const & board)
     {
         this->board = board;
     }
@@ -298,6 +299,7 @@ class State
     vector<State> getPossibleStates()
     {
         vector<State> possibleStates;
+        possibleStates.reserve(42);
 
         // playing at each empty position generates a new state
         vector<pair<int, int> > emptyPositions = this->board.getEmptyPos();
@@ -358,8 +360,7 @@ class Node
         this->state.setVisitCount(s.getVisitCount());
 
         this->parent=nullptr;
-        vector<Node> children(0);
-        this->children = children;
+        this->children.reserve(42);
         this->ucb = 0;    // **
 
     }
@@ -372,9 +373,7 @@ class Node
         this->state.setVisitCount(s->getVisitCount());
         this->parent=nullptr;
 
-        vector<Node> children(0);
-
-        this->children = children;
+        this->children.reserve(42);
         this->ucb = 0;    // **
     }
 
