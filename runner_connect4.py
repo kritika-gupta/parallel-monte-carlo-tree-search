@@ -15,12 +15,12 @@ problem_size = [10**i for i in range(2, 4)] + [5*(10**i) for i in range(2, 4)] +
 problem_size.sort()
 base = os.getcwd()
 
-serial_file = base + "/tictactoe.cpp"
-leaf_file = base + "/tictactoe_leaf.cpp"
-root_file = base + "/tictactoe_root.cpp"
-serial_exec = base + "/tic"
-leaf_exec = base + "/leaf"
-root_exec = base + "/root"
+serial_file = base + "/connect4.cpp"
+leaf_file = base + "/connect4_leaf.cpp"
+root_file = base + "/connect4_root.cpp"
+serial_exec = base + "/c4"
+leaf_exec = base + "/c4_leaf"
+root_exec = base + "/c4_root"
 os.system("g++ -g -fopenmp -std=c++11 " + serial_file + " -o " + serial_exec)
 os.system("g++ -g -fopenmp -std=c++11 " + leaf_file + " -o " + leaf_exec)
 os.system("g++ -g -fopenmp -std=c++11 " + root_file + " -o " + root_exec)

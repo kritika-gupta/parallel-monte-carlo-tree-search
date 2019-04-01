@@ -15,88 +15,142 @@ class Board
     public:
     int moves;
     vector<vector<int>> board;
+    int lastcol, lastrow;
 
     // constructor 
     Board(){
-        for(int i=0; i<3; i++){
-            this->board.resize(3, vector<int>(3));
-            for(int j=0; j<3; j++){
+        for(int i=0; i<6; i++){
+            this->board.resize(6, vector<int>(7));
+            for(int j=0; j<7; j++){
                 this->board[i][j] = -1;
             }
         }
         this->moves = 0;
+        this->lastcol = -1;
+        this->lastrow = -1;
     }
     // copy constructor
     Board(Board* b)
     {
         this->board = b->getBoardValues();
         this->moves = b->getMoves();
+        this->lastcol = b->getLastCol();
+        this->lastrow = b->getLastRow();
     }
 
+    int getLastRow()
+    {
+        return this->lastrow;
+    }
+
+    int getLastCol()
+    {
+        return this->lastcol;
+    }
+
+    void setLastPos(int r, int c)
+    {
+        this->lastcol = c;
+        this->lastrow = r;
+    }
+    // fn to return a list of empty positions on the board
     vector<pair<int, int> > getEmptyPos()
     {
         vector<pair<int, int> > positions;
-        for(int i=0; i<3; i++){
-            for(int j=0; j<3; j++){
-                if(this->board[i][j]==-1){
-                    positions.push_back(make_pair(i, j));
-                }
 
+        //for every col, get the deepest empty row
+        for(int col=0; col<7; col++)
+        {
+            for(int row = 5; row>=0; row--)
+            // start row count from bottommost row 
+            {
+                if(this->board[row][col]==-1){
+                    positions.push_back(make_pair(row, col));
+                    break;
+                }
             }
         }
+        
         return positions;
     }
 
     // function to check the status (a player one (return player), or in progress (return 2), or draw (return 3))
     int checkStatus()
     {
-        vector<vector<int>> colwise(3, vector<int>(3));
-        vector<int> diagonal1(3);
-        vector<int> diagonal2(3);
-        int p;
-        // check row-wise
-        for(int i=0; i<3; i++){
-            colwise[0][i] = (this->board[i][0]);
-            colwise[1][i] = (this->board[i][1]);
-            colwise[2][i] = (this->board[i][2]);
-            diagonal1[i] = (this->board[i][i]);
-            diagonal2[i] = (this->board[i][2-i]);
-            p = checkWin(this->board[i]);
-            if(p!=-1){
-                // player p has won
-                return p;
-            }
 
+        // draw
+        if(this->getEmptyPos().size()==0){
+            return 3;
         }
 
-        // check col-wise
-        for(int i=0; i<3; i++){
-            p = checkWin(colwise[i]);
-            if(p!=-1){
-                // player p has won
-                if(verbose) {
-                    cout << "Winning combination: Column " << i << endl; 
-                }
-                return p;
-            }
-        }
-        // check diagonal
-        p = checkWin(diagonal1);
-        if(p!=-1){
-            // player p has won
-            if(verbose) {
-                cout << "Winning combination: Diagonal 1" << endl;
-            }
-            return p;
+        int lc = this->getLastCol();
+        int lr = this->getLastRow();
+
+        if(lc==-1 || lr ==-1)
+        {
+            // game not started yet, return in_progress
+            return 2;
         }
         
-        p = checkWin(diagonal2);
-        if(p!=-1){
-            if(verbose) {
-                cout << "Winning combination: Diagonal 2" << endl;
-            }
-            // player p has won
-            return p;
+        
+        
+
+        // only need to check around the last position dropped
+        int player = this->board[lr][lc];
+
+        // horizontal connect 4
+        int right = 0, left = 0;
+        for(int c = lc-1; c>=0 && this->board[lr][c]==player; --c){
+            left++;
+        }
+        for(int c = lc+1; c<7 && this->board[lr][c]==player; ++c){
+            right++;
+        }
+        if(left+right+1 >= 4){
+            //cout<<"horizontal win by "<<player<<endl;
+            return player;
+        }
+
+        // vertical connect 4
+        int up = 0, down = 0;
+        for(int r = lr-1; r>=0 && this->board[r][lc]==player; --r){
+            up++;
+        }
+        for(int r = lr+1; r<6 && this->board[r][lc]==player; ++r){
+            down++;
+        }
+        if(up+down+1 >= 4){
+            //cout<<"vertical win by "<<player<<endl;
+
+            return player;
+        }
+
+        // right diagonal connect 4
+        up = 0, down = 0;
+        for(int r = lr-1, c = lc-1 ; r>=0 && c>=0 && this->board[r][c]==player; --r, --c){
+            up++;
+        }
+        for(int r = lr+1, c = lc+1; r<6 &&c<7 && this->board[r][c]==player; ++r, ++c){
+            down++;
+        }
+        if(up+down+1 >= 4){
+            //cout<<"right diagonal win by "<<player<<endl;
+
+            return player;
+        }
+        
+        // left diagonal connect 4
+        up = 0, down = 0;
+        for(int r = lr+1, c = lc-1 ; r<6 && c>=0 && this->board[r][c]==player; ++r, --c){
+            up++;
+        }
+        for(int r = lr-1, c = lc+1; r>=0 &&c<7 && this->board[r][c]==player; --r, ++c){
+            down++;
+        }
+        if(up+down+1 >= 4){
+            //cout<<"left diagonal win by "<<player<<endl;
+
+            return player;
         }
 
         // in progress
@@ -104,30 +158,28 @@ class Board
             return 2;
         }
 
-        // draw
-        return 3;
 
 
     }
 
     // function to check for a win on the given row
-    int checkWin(vector<int> row)
-    {
+    // int checkWin(vector<int> row)
+    // {
         
-        int value = row[0];
-        for(int i=0; i<3-1; i++){
-            if(row[i]!=row[i+1]){
-                return -1;
-            }
-        }
-        return row[0];
-    }
+    //     int value = row[0];
+    //     for(int i=0; i<3-1; i++){
+    //         if(row[i]!=row[i+1]){
+    //             return -1;
+    //         }
+    //     }
+    //     return row[0];
+    // }
 
     // function to display the board
     void display()
     {
-        for(int i=0; i<3; i++){
-            for(int j=0; j<3; j++){
+        for(int i=0; i<6; i++){
+            for(int j=0; j<7; j++){
                 cout<<this->board[i][j]<< " ";
             }
             cout<<endl;
@@ -143,6 +195,9 @@ class Board
             this->display();
         }
         //cout<<"NEw move added by player"<<player<<" at "<<x<<y<<endl;
+        this->lastcol = y;
+        this->lastrow = x;
+
     }
 
     // getters and setters
@@ -167,6 +222,7 @@ class Board
 
     
 };
+
 class State
 {
     Board board;
@@ -181,6 +237,7 @@ class State
         Board board;
         this->board.setBoardValues(board.getBoardValues());
         this->board.setMoves(board.getMoves());
+        this->board.setLastPos(board.getLastRow(), board.getLastCol());
 
         this->player = 0;
         this->visitCount = 0;
@@ -190,6 +247,7 @@ class State
     State(Board *board){
         this->board.setBoardValues(board->getBoardValues());
         this->board.setMoves(board->getMoves());
+        this->board.setLastPos(board->getLastRow(), board->getLastCol());
     }
     // copy constructor
     State(State* s)
@@ -205,6 +263,7 @@ class State
         this->board.setBoardValues(board->getBoardValues());
 
         this->board.setMoves(board->getMoves());
+        this->board.setLastPos(board->getLastRow(), board->getLastCol());
     }
 
     void setPlayer(int n)
@@ -255,6 +314,7 @@ class State
 
         // playing at each empty position generates a new state
         vector<pair<int, int> > emptyPositions = this->board.getEmptyPos();
+
         for(int i=0; i<emptyPositions.size(); i++){
             State newState;
             newState.setBoard(&(this->board));
@@ -271,9 +331,8 @@ class State
         this->player = 1-this->player;
     }
     
-    void randomPlay(int i)
+    void randomPlay()
     {
-        
         
         vector<pair<int, int> > emptyPos  = this->board.getEmptyPos();
         int totalPos = emptyPos.size();
@@ -283,12 +342,12 @@ class State
         clock_gettime(CLK, &curr_time);
         
         //cout<<"seed is "<<curr_time.tv_nsec<<endl;
-        mt19937_64 random_engine(curr_time.tv_nsec*omp_get_thread_num());
+        mt19937_64 random_engine((curr_time.tv_nsec)*omp_get_thread_num());
 
         uniform_int_distribution<int> dis(0, totalPos-1);
         int randnum = dis(random_engine);
         this->board.newMove(this->player, emptyPos[randnum].first, emptyPos[randnum].second);
-
+        //cout<<"returning from random play"<<endl;
 
     }
     
@@ -347,10 +406,6 @@ class Node
     {
         this->state = new State(n->getState());
         this->setParent(n->getParent());
-        if(n->getChildren()->size()==0){
-            this->children.resize(0);
-
-        }
         for(int i=0; i<n->getChildren()->size(); i++)
         {
             // copy esch node child
@@ -405,7 +460,7 @@ class Node
         clock_gettime(CLK, &curr_time);
         
         //cout<<"seed is "<<curr_time.tv_nsec<<endl;
-        std::mt19937_64 random_engine(curr_time.tv_nsec*omp_get_thread_num());
+        std::mt19937_64 random_engine(curr_time.tv_nsec);
         std::uniform_int_distribution<int> dis(0, numChild-1);
         return &(this->children[dis(random_engine)]);
         
@@ -426,7 +481,6 @@ class Node
         double max = INT_MIN;
         Node* bestChild = nullptr;
         // calculate ucb scores for each child
-        
         for(int i=0; i<this->getChildren()->size(); i++){
             Node* child = &(*this->getChildren())[i];
             double u = calcUCB(child->getState()->getWinScore(), child->getState()->getVisitCount(), this->getState()->getVisitCount());
@@ -444,7 +498,6 @@ class Node
                 bestChild = child;
             }
         }
-        
         // return the child with max ucb score
         if(verbose) {
             cout<<"Returning from findBestChild with : "<<endl;
@@ -537,18 +590,19 @@ class MCTS
 
 
     public:
-    MCTS(int num, int threads)
+    MCTS(int n, int p)
     {
         this->tree = new Tree();
         this->level = 0;
-        this->n = num;
-        this->p = threads;
+        this->n = n;
+        this->p = p;
     }
 
 
     
     Node findNextMove(Board* board, int player){
         this->opponent = 1 - player;
+        
         //cout<<"opponent for this mcts object is "<<opponent<<endl;
         // create a new tree to find the next move
         Node* rootNode = this->tree->getRoot(); 
@@ -556,103 +610,77 @@ class MCTS
         //set the given board (current game state) as the root's state's board
         rootNode->getState()->setBoard(board);
         rootNode->getState()->setPlayer(opponent);
-
-        Node* bestNode, *nodeExp;
-        int tempstatus, playoutRes, size;
+        //cout<<"ROOT IS"<<endl;
+        //rootNode->getState()->getBoard()->display();
         //run the 4 steps for a set number of iterations
+        cout<<"level = "<<this->level<<endl;
 
-        vector<vector<int>> allChildren(this->p);
-        omp_set_num_threads(this->p);
-        #pragma omp parallel private(bestNode, nodeExp, tempstatus, playoutRes) shared(rootNode)
+        int niter = (this->level+2)*5000;
+        for(int i=0; i <this->n; i++)
         {
-            Tree threadTree(this->tree);
-            Node* myRoot = threadTree.getRoot();
-            // cout<<"myRoot points to  "<<myRoot<<endl;
-            // cout<<"Children = "<<myRoot->getChildren()->size()<<endl;
-            for(int i=0; i <this->n; i++)
+            //Node* bestNode = rootNode;
+            // SELECTION
+            // select a path to leaf node with best UCB
+            //if(rootNode->getChildren()->empty()==false){
+                Node* bestNode = selectNode(rootNode);
+
+            //}    
+            
+            //cout<<"Selection done"<<endl;
+            
+            //bestNode->getState()->getBoard()->display();
+            // check if selected node is not end game scenario
+            // EXPAND
+            
+
+            // status of best node
+            int temp = bestNode->getState()->getBoard()->checkStatus();
+            
+            
+            //cout<<"After selection, we selected a node with status = "<<temp<<endl<<endl;
+            if(temp==2){
+                expandNode(bestNode);
+            }
+            //cout<<"Expansion done"<<endl;
+
+
+            // SIMULATE
+            Node* nodeExp = bestNode;
+            // get a random child 
+            if(bestNode->getChildren()->size() > 0){
+                nodeExp = bestNode->getRandomChild(i);
+            }
+            //cout<<"Got a random child done"<<endl;
+
+            //cout<<"The random Child is "<<endl;
+            //nodeExp->getState()->getBoard()->display();
+            //cout<<endl<<endl;
+            vector<int> playoutResults(this->p);
+            omp_set_num_threads(this->p);
+            int playoutRes;
+
+            #pragma omp parallel private(playoutRes)
             {
-                //Node* bestNode = rootNode;
-                // SELECTION
-                // select a path to leaf node with best UCB
-                //if(rootNode->getChildren()->empty()==false){
-                    
-
-                    bestNode = selectNode(myRoot);
-                    
-                    
-                //}    
-                
-                //cout<<"Selection done"<<endl;
-
-                //bestNode->getState()->getBoard()->display();
-                // check if selected node is not end game scenario
-                // EXPAND
-                
-                    
-                // status of best node
-                tempstatus = bestNode->getState()->getBoard()->checkStatus();
-
-                //cout<<"After selection, we selected a node with status = "<<temp<<endl<<endl;
-                if(tempstatus==2){
-                    expandNode(bestNode);
-                }
-               
-
-                //cout<<"Expansion done"<<endl;
-
-                // SIMULATE
-                nodeExp = bestNode;
-                // get a random child 
-                if(bestNode->getChildren()->size() > 0){
-                    nodeExp = bestNode->getRandomChild(i);
-                }
-                
-                //cout<<"Got a random child done"<<endl;
-
-                //cout<<"The random Child is "<<endl;
-                //nodeExp->getState()->getBoard()->display();
-                //cout<<endl<<endl;
-                // simulate a random playout of the random child
-                playoutRes = simulateRandomPlayout(nodeExp, i);
-
-                // UPDATE VIA BACKPROP
-                backProp(nodeExp, playoutRes);
-                //cout<<"BAckprop done"<<endl;
                 int myID = omp_get_thread_num();
-                size = myRoot->getChildren()->size();
-                allChildren[myID].resize(size);
-                for(int i=0; i<size; i++){
-                    allChildren[myID][i] = (*myRoot->getChildren())[i].getState()->getVisitCount();
-
-                }
-                
+                // simulate a random playout of the random child
+                playoutRes = simulateRandomPlayout(nodeExp);
+                playoutResults[myID] = playoutRes;
 
             }
-        }
 
-        // merge the scores of the clones
-        expandNode(rootNode);
-        size = rootNode->getChildren()->size();
-        vector<int> finalScores(size, 0);
+            // UPDATE VIA BACKPROP
+            for(int j=0; j < this->p; j++){
+
+                backProp(nodeExp, playoutResults[j]);
+
+            }
+            //cout<<"Backprop done"<<endl;
+
+        }
+        Node* temp = rootNode->getChildWithMaxScore();
         
-        int max = INT_MIN, max_id = 0;
-        #pragma omp parallel for
-        for(int j=0; j<size; j++){
-            for(int i=0; i<this->p; i++)
-            {
-                finalScores[j] += allChildren[i][j];
-            }
-            if(finalScores[j]>max)
-            {
-                max = finalScores[j];
-                max_id = j;
-            }
-                
-            //(*rootNode->getChildren())[j].getState()->setVisitCount(finalScores[j]);
-        }
-        //Node* temp = rootNode->getChildWithMaxScore();
-        Node* temp = &(*rootNode->getChildren())[max_id];
         Node winner(temp);
+
         //cout<<"LEVEL = "<<this->level<<endl<<endl;
         //this->tree->dispTree();
         this->tree->setRoot(temp);
@@ -665,8 +693,7 @@ class MCTS
     Node* selectNode(Node* rootNode)
     {
         Node* node = rootNode;
-        int num = rootNode->getChildren()->size();
-
+        int num = node->getChildren()->size();
         while(num!=0){
             // traverse the tree to get leaf with highest ucb value
 
@@ -675,7 +702,6 @@ class MCTS
 
         }
         //cout<<"returning from selection by selecting : "<<endl;
-
         //node->getState()->getBoard()->display();
         //cout<<endl<<endl;
         return node;
@@ -683,23 +709,17 @@ class MCTS
 
     void expandNode(Node* node)
     {
-
         vector<State> possibleStates = node->getState()->getPossibleStates();
 
         // for each possible state, create a new child node
         //cout<<"Number of possible states are"<<possibleStates.size()<<endl;
         for(int i =0; i<possibleStates.size(); i++){
             Node newNode(&possibleStates[i]);
-
             newNode.setParent(node);
-            
             newNode.getState()->setPlayer(1-node->getState()->getPlayer());
-
             node->getChildren()->push_back(newNode);
-                                    
             
         }
-
     }
 
     void backProp(Node* nodeExp, int player)
@@ -721,13 +741,12 @@ class MCTS
         }
     }
 
-    int simulateRandomPlayout(Node* node, int i)
+    int simulateRandomPlayout(Node* node)
     {
         Node tempNode(node);  // copy of node to be played out
         State tempState(tempNode.getState());
         int boardStatus = tempState.getBoard()->checkStatus();
         
-        //cout<<"In simulate random playout, board status is "<<boardStatus<<endl;
         if(boardStatus == this->opponent)
         {
             //opponent has won, end playout
@@ -736,15 +755,14 @@ class MCTS
             //cout<<"Returning from simulation"<<endl;
             return boardStatus;
         }
-
         // while board is in progress
         while(boardStatus == 2)
         {
             //cout<<"Board in prog"<<endl;
             tempState.togglePlayer();
             //cout<<"going to random play"<<endl;
-            tempState.randomPlay(i);
-            
+            tempState.randomPlay();
+            //tempState.getBoard()->display();
             boardStatus = tempState.getBoard()->checkStatus();
         }
 
@@ -765,7 +783,7 @@ int main(int argc, char* argv[]){
     int player = 0;
     int totalmoves = 9;
     double start = omp_get_wtime();
-    for(int i=0; i<9; i++)
+    for(int i=0; i<42; i++)
     {
         int x, y;
         // for each move
@@ -778,9 +796,11 @@ int main(int argc, char* argv[]){
             myboard  = *((mcts.findNextMove(&myboard, player)).getState()->getBoard());
        // }
         //cout<<"my board stat is "<<myboard.checkStatus()<<endl<<endl;
-        
-        //cout<<"current state after chance "<<i<<endl;
-        //myboard.display();
+        cout<<"***"<<endl;
+        myboard.display();
+        cout<<"last dropped "<<myboard.getLastRow()<<", "<<myboard.getLastCol()<<endl;
+
+        //-------------------------------------------
         
         if(myboard.checkStatus()!=2){
             // if not in progress
@@ -789,13 +809,13 @@ int main(int argc, char* argv[]){
         }
         //cout<<"game continues"<<endl;
         player = 1-player;
-
+        
         
 
     }
-    double serial_time = omp_get_wtime() - start;
+    double leaf_time = omp_get_wtime() - start;
     int winStat = myboard.checkStatus();
-    cout<<winStat<<" "<<serial_time<<endl;
+    cout<<winStat<<" "<<leaf_time<<endl;
     return 0;
 
 }

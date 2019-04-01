@@ -15,88 +15,142 @@ class Board
     public:
     int moves;
     vector<vector<int>> board;
+    int lastcol, lastrow;
 
     // constructor 
     Board(){
-        for(int i=0; i<3; i++){
-            this->board.resize(3, vector<int>(3));
-            for(int j=0; j<3; j++){
+        for(int i=0; i<6; i++){
+            this->board.resize(6, vector<int>(7));
+            for(int j=0; j<7; j++){
                 this->board[i][j] = -1;
             }
         }
         this->moves = 0;
+        this->lastcol = -1;
+        this->lastrow = -1;
     }
     // copy constructor
     Board(Board* b)
     {
         this->board = b->getBoardValues();
         this->moves = b->getMoves();
+        this->lastcol = b->getLastCol();
+        this->lastrow = b->getLastRow();
     }
 
+    int getLastRow()
+    {
+        return this->lastrow;
+    }
+
+    int getLastCol()
+    {
+        return this->lastcol;
+    }
+
+    void setLastPos(int r, int c)
+    {
+        this->lastcol = c;
+        this->lastrow = r;
+    }
+    // fn to return a list of empty positions on the board
     vector<pair<int, int> > getEmptyPos()
     {
         vector<pair<int, int> > positions;
-        for(int i=0; i<3; i++){
-            for(int j=0; j<3; j++){
-                if(this->board[i][j]==-1){
-                    positions.push_back(make_pair(i, j));
-                }
 
+        //for every col, get the deepest empty row
+        for(int col=0; col<7; col++)
+        {
+            for(int row = 5; row>=0; row--)
+            // start row count from bottommost row 
+            {
+                if(this->board[row][col]==-1){
+                    positions.push_back(make_pair(row, col));
+                    break;
+                }
             }
         }
+        
         return positions;
     }
 
     // function to check the status (a player one (return player), or in progress (return 2), or draw (return 3))
     int checkStatus()
     {
-        vector<vector<int>> colwise(3, vector<int>(3));
-        vector<int> diagonal1(3);
-        vector<int> diagonal2(3);
-        int p;
-        // check row-wise
-        for(int i=0; i<3; i++){
-            colwise[0][i] = (this->board[i][0]);
-            colwise[1][i] = (this->board[i][1]);
-            colwise[2][i] = (this->board[i][2]);
-            diagonal1[i] = (this->board[i][i]);
-            diagonal2[i] = (this->board[i][2-i]);
-            p = checkWin(this->board[i]);
-            if(p!=-1){
-                // player p has won
-                return p;
-            }
 
+        // draw
+        if(this->getEmptyPos().size()==0){
+            return 3;
         }
 
-        // check col-wise
-        for(int i=0; i<3; i++){
-            p = checkWin(colwise[i]);
-            if(p!=-1){
-                // player p has won
-                if(verbose) {
-                    cout << "Winning combination: Column " << i << endl; 
-                }
-                return p;
-            }
-        }
-        // check diagonal
-        p = checkWin(diagonal1);
-        if(p!=-1){
-            // player p has won
-            if(verbose) {
-                cout << "Winning combination: Diagonal 1" << endl;
-            }
-            return p;
+        int lc = this->getLastCol();
+        int lr = this->getLastRow();
+
+        if(lc==-1 || lr ==-1)
+        {
+            // game not started yet, return in_progress
+            return 2;
         }
         
-        p = checkWin(diagonal2);
-        if(p!=-1){
-            if(verbose) {
-                cout << "Winning combination: Diagonal 2" << endl;
-            }
-            // player p has won
-            return p;
+        
+        
+
+        // only need to check around the last position dropped
+        int player = this->board[lr][lc];
+
+        // horizontal connect 4
+        int right = 0, left = 0;
+        for(int c = lc-1; c>=0 && this->board[lr][c]==player; --c){
+            left++;
+        }
+        for(int c = lc+1; c<7 && this->board[lr][c]==player; ++c){
+            right++;
+        }
+        if(left+right+1 >= 4){
+            //cout<<"horizontal win by "<<player<<endl;
+            return player;
+        }
+
+        // vertical connect 4
+        int up = 0, down = 0;
+        for(int r = lr-1; r>=0 && this->board[r][lc]==player; --r){
+            up++;
+        }
+        for(int r = lr+1; r<6 && this->board[r][lc]==player; ++r){
+            down++;
+        }
+        if(up+down+1 >= 4){
+            //cout<<"vertical win by "<<player<<endl;
+
+            return player;
+        }
+
+        // right diagonal connect 4
+        up = 0, down = 0;
+        for(int r = lr-1, c = lc-1 ; r>=0 && c>=0 && this->board[r][c]==player; --r, --c){
+            up++;
+        }
+        for(int r = lr+1, c = lc+1; r<6 &&c<7 && this->board[r][c]==player; ++r, ++c){
+            down++;
+        }
+        if(up+down+1 >= 4){
+            //cout<<"right diagonal win by "<<player<<endl;
+
+            return player;
+        }
+        
+        // left diagonal connect 4
+        up = 0, down = 0;
+        for(int r = lr+1, c = lc-1 ; r<6 && c>=0 && this->board[r][c]==player; ++r, --c){
+            up++;
+        }
+        for(int r = lr-1, c = lc+1; r>=0 &&c<7 && this->board[r][c]==player; --r, ++c){
+            down++;
+        }
+        if(up+down+1 >= 4){
+            //cout<<"left diagonal win by "<<player<<endl;
+
+            return player;
         }
 
         // in progress
@@ -104,30 +158,28 @@ class Board
             return 2;
         }
 
-        // draw
-        return 3;
 
 
     }
 
     // function to check for a win on the given row
-    int checkWin(vector<int> row)
-    {
+    // int checkWin(vector<int> row)
+    // {
         
-        int value = row[0];
-        for(int i=0; i<3-1; i++){
-            if(row[i]!=row[i+1]){
-                return -1;
-            }
-        }
-        return row[0];
-    }
+    //     int value = row[0];
+    //     for(int i=0; i<3-1; i++){
+    //         if(row[i]!=row[i+1]){
+    //             return -1;
+    //         }
+    //     }
+    //     return row[0];
+    // }
 
     // function to display the board
     void display()
     {
-        for(int i=0; i<3; i++){
-            for(int j=0; j<3; j++){
+        for(int i=0; i<6; i++){
+            for(int j=0; j<7; j++){
                 cout<<this->board[i][j]<< " ";
             }
             cout<<endl;
@@ -143,6 +195,9 @@ class Board
             this->display();
         }
         //cout<<"NEw move added by player"<<player<<" at "<<x<<y<<endl;
+        this->lastcol = y;
+        this->lastrow = x;
+
     }
 
     // getters and setters
@@ -167,6 +222,7 @@ class Board
 
     
 };
+
 class State
 {
     Board board;
@@ -181,6 +237,7 @@ class State
         Board board;
         this->board.setBoardValues(board.getBoardValues());
         this->board.setMoves(board.getMoves());
+        this->board.setLastPos(board.getLastRow(), board.getLastCol());
 
         this->player = 0;
         this->visitCount = 0;
@@ -190,6 +247,7 @@ class State
     State(Board *board){
         this->board.setBoardValues(board->getBoardValues());
         this->board.setMoves(board->getMoves());
+        this->board.setLastPos(board->getLastRow(), board->getLastCol());
     }
     // copy constructor
     State(State* s)
@@ -205,6 +263,7 @@ class State
         this->board.setBoardValues(board->getBoardValues());
 
         this->board.setMoves(board->getMoves());
+        this->board.setLastPos(board->getLastRow(), board->getLastCol());
     }
 
     void setPlayer(int n)
@@ -255,6 +314,7 @@ class State
 
         // playing at each empty position generates a new state
         vector<pair<int, int> > emptyPositions = this->board.getEmptyPos();
+
         for(int i=0; i<emptyPositions.size(); i++){
             State newState;
             newState.setBoard(&(this->board));
@@ -271,9 +331,8 @@ class State
         this->player = 1-this->player;
     }
     
-    void randomPlay(int i)
+    void randomPlay()
     {
-        
         
         vector<pair<int, int> > emptyPos  = this->board.getEmptyPos();
         int totalPos = emptyPos.size();
@@ -283,12 +342,12 @@ class State
         clock_gettime(CLK, &curr_time);
         
         //cout<<"seed is "<<curr_time.tv_nsec<<endl;
-        mt19937_64 random_engine(curr_time.tv_nsec*omp_get_thread_num());
+        mt19937_64 random_engine((curr_time.tv_nsec)*omp_get_thread_num());
 
         uniform_int_distribution<int> dis(0, totalPos-1);
         int randnum = dis(random_engine);
         this->board.newMove(this->player, emptyPos[randnum].first, emptyPos[randnum].second);
-
+        //cout<<"returning from random play"<<endl;
 
     }
     
@@ -613,7 +672,7 @@ class MCTS
                 //nodeExp->getState()->getBoard()->display();
                 //cout<<endl<<endl;
                 // simulate a random playout of the random child
-                playoutRes = simulateRandomPlayout(nodeExp, i);
+                playoutRes = simulateRandomPlayout(nodeExp);
 
                 // UPDATE VIA BACKPROP
                 backProp(nodeExp, playoutRes);
@@ -721,7 +780,7 @@ class MCTS
         }
     }
 
-    int simulateRandomPlayout(Node* node, int i)
+    int simulateRandomPlayout(Node* node)
     {
         Node tempNode(node);  // copy of node to be played out
         State tempState(tempNode.getState());
@@ -743,7 +802,7 @@ class MCTS
             //cout<<"Board in prog"<<endl;
             tempState.togglePlayer();
             //cout<<"going to random play"<<endl;
-            tempState.randomPlay(i);
+            tempState.randomPlay();
             
             boardStatus = tempState.getBoard()->checkStatus();
         }
@@ -763,9 +822,9 @@ int main(int argc, char* argv[]){
     //myboard.display();
     MCTS mcts(n, p);
     int player = 0;
-    int totalmoves = 9;
+    int totalmoves = 42;
     double start = omp_get_wtime();
-    for(int i=0; i<9; i++)
+    for(int i=0; i<totalmoves; i++)
     {
         int x, y;
         // for each move
@@ -793,9 +852,9 @@ int main(int argc, char* argv[]){
         
 
     }
-    double serial_time = omp_get_wtime() - start;
+    double root_time = omp_get_wtime() - start;
     int winStat = myboard.checkStatus();
-    cout<<winStat<<" "<<serial_time<<endl;
+    cout<<winStat<<" "<<root_time<<endl;
     return 0;
 
 }
