@@ -162,19 +162,6 @@ class Board
 
     }
 
-    // function to check for a win on the given row
-    // int checkWin(vector<int> row)
-    // {
-        
-    //     int value = row[0];
-    //     for(int i=0; i<3-1; i++){
-    //         if(row[i]!=row[i+1]){
-    //             return -1;
-    //         }
-    //     }
-    //     return row[0];
-    // }
-
     // function to display the board
     void display()
     {
@@ -201,7 +188,7 @@ class Board
     }
 
     // getters and setters
-    vector<vector<int> > getBoardValues()
+    vector<vector<int> >& getBoardValues()
     {
         return this->board;
     }
@@ -211,7 +198,7 @@ class Board
         return this->moves;
     }
 
-    void setBoardValues(vector<vector<int> > board)
+    void setBoardValues(vector<vector<int> >& board)
     {
         this->board = board;
     }
@@ -391,14 +378,14 @@ class Node
         this->ucb = 0;    // **
     }
 
-    Node(State* s, Node* p, vector<Node> *c, double u)
+    Node(State* s, Node* p, vector<Node> &c, double u)
     {
         this->state.setBoard(s->getBoard());
         this->state.setPlayer(s->getPlayer());
         this->state.setWinScore(s->getWinScore());
         this->state.setVisitCount(s->getVisitCount());
-        *this->parent = Node(p->getState(), p->getParent(), p->getChildren(), p->getUCB());
-        this->children = *c;
+        *this->parent = Node(p->getState(), p->getParent(), *p->getChildren(), p->getUCB());
+        this->children = c;
         this->ucb = u;    // **
     }
 
@@ -612,9 +599,7 @@ class MCTS
         //cout<<"ROOT IS"<<endl;
         //rootNode->getState()->getBoard()->display();
         //run the 4 steps for a set number of iterations
-        cout<<"level = "<<this->level<<endl;
-
-        int niter = (this->level+2)*5000;
+        
         for(int i=0; i <this->n; i++)
         {
             //Node* bestNode = rootNode;
@@ -667,7 +652,6 @@ class MCTS
         Node* temp = rootNode->getChildWithMaxScore();
         
         Node winner(temp);
-        cout<<"Winner, last dropped at "<<winner.getState()->getBoard()->getLastRow()<< ","<<winner.getState()->getBoard()->getLastCol()<<endl;
 
         //cout<<"LEVEL = "<<this->level<<endl<<endl;
         //this->tree->dispTree();
@@ -782,9 +766,8 @@ int main(int argc, char* argv[]){
             myboard  = *((mcts.findNextMove(&myboard, player)).getState()->getBoard());
        // }
         //cout<<"my board stat is "<<myboard.checkStatus()<<endl<<endl;
-        cout<<"***"<<endl;
-        myboard.display();
-        cout<<"last dropped "<<myboard.getLastRow()<<", "<<myboard.getLastCol()<<endl;
+        //cout<<"***"<<endl;
+        //myboard.display();
 
         //-------------------------------------------
         
