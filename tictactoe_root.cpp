@@ -36,6 +36,7 @@ class Board
     vector<pair<int, int> > getEmptyPos()
     {
         vector<pair<int, int> > positions;
+        positions.reserve(9);
         for(int i=0; i<3; i++){
             for(int j=0; j<3; j++){
                 if(this->board[i][j]==-1){
@@ -312,8 +313,8 @@ class Node
         this->state.setVisitCount(s.getVisitCount());
 
         this->parent=nullptr;
-        vector<Node> children(0);
-        this->children = children;
+        
+        this->children.reserve(9);
         this->ucb = 0;    // **
 
     }
@@ -326,9 +327,9 @@ class Node
         this->state.setVisitCount(s->getVisitCount());
         this->parent=nullptr;
 
-        vector<Node> children(0);
+        
 
-        this->children = children;
+        this->children.reserve(9);
         this->ucb = 0;    // **
     }
 
@@ -347,10 +348,7 @@ class Node
     {
         this->state = new State(n->getState());
         this->setParent(n->getParent());
-        if(n->getChildren()->size()==0){
-            this->children.resize(0);
-
-        }
+        this->children.reserve(n->getChildren()->size());
         for(int i=0; i<n->getChildren()->size(); i++)
         {
             // copy esch node child
